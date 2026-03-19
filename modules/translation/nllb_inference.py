@@ -1,4 +1,14 @@
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+try:
+    from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+    TRANSFORMERS_AVAILABLE = True
+    TRANSFORMERS_IMPORT_ERROR = None
+except Exception as exc:
+    AutoTokenizer = None
+    AutoModelForSeq2SeqLM = None
+    pipeline = None
+    TRANSFORMERS_AVAILABLE = False
+    TRANSFORMERS_IMPORT_ERROR = exc
+
 import gradio as gr
 import os
 
@@ -20,11 +30,18 @@ class NLLBInference(TranslationBase):
         self.available_source_langs = list(NLLB_AVAILABLE_LANGS.keys())
         self.available_target_langs = list(NLLB_AVAILABLE_LANGS.keys())
         self.pipeline = None
+        self.available = TRANSFORMERS_AVAILABLE
+        self.availability_error = TRANSFORMERS_IMPORT_ERROR
 
     def translate(self,
                   text: str,
                   max_length: int
                   ):
+        if not self.available:
+            raise RuntimeError(
+                "NLLB translation is unavailable in this environment."
+            ) from self.availability_error
+
         result = self.pipeline(
             text,
             max_length=max_length
@@ -37,6 +54,11 @@ class NLLBInference(TranslationBase):
                      tgt_lang: str,
                      progress: gr.Progress = gr.Progress()
                      ):
+        if not self.available:
+            raise RuntimeError(
+                "NLLB translation is unavailable in this environment."
+            ) from self.availability_error
+
         def validate_language(lang: str) -> str:
             if lang in NLLB_AVAILABLE_LANGS:
                 return NLLB_AVAILABLE_LANGS[lang]

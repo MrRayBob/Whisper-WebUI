@@ -15,9 +15,13 @@ from modules.diarize.audio_loader import load_audio
 from modules.utils.logger import get_logger
 logger = get_logger()
 
+UVR_AVAILABLE = True
+UVR_IMPORT_ERROR = None
 try:
     from uvr.models import MDX, Demucs, VrNetwork, MDXC
 except Exception as e:
+    UVR_AVAILABLE = False
+    UVR_IMPORT_ERROR = e
     logger.warning(
         "Failed to import uvr. BGM separation feature will not work. "
         "Please open an issue on GitHub if you encounter this error. "
@@ -42,6 +46,8 @@ class MusicSeparator:
         self.available_models = ["UVR-MDX-NET-Inst_HQ_4", "UVR-MDX-NET-Inst_3"]
         self.default_model = self.available_models[0]
         self.current_model_size = self.default_model
+        self.available = UVR_AVAILABLE
+        self.availability_error = UVR_IMPORT_ERROR
         self.model_config = {
             "segment": 256,
             "split": True
@@ -59,6 +65,11 @@ class MusicSeparator:
             device (str): Device to use for the model.
             segment_size (int): Segment size for the prediction.
         """
+        if not self.available:
+            raise RuntimeError(
+                "Background music separation is unavailable in this environment."
+            ) from self.availability_error
+
         if device is None:
             device = self.device
 
@@ -97,6 +108,11 @@ class MusicSeparator:
             np.ndarray: Vocals numpy arrays.
             file_paths: List of file paths where the separated audio is saved. Return empty when save_file is False.
         """
+        if not self.available:
+            raise RuntimeError(
+                "Background music separation is unavailable in this environment."
+            ) from self.availability_error
+
         if isinstance(audio, str):
             output_filename, ext = os.path.basename(audio), ".wav"
             output_filename, orig_ext = os.path.splitext(output_filename)
@@ -154,6 +170,11 @@ class MusicSeparator:
                        progress: gr.Progress = gr.Progress()) -> List[str]:
         """Separate the background music from the audio files. Returns only last Instrumental and vocals file paths
         to display into gr.Audio()"""
+        if not self.available:
+            raise RuntimeError(
+                "Background music separation is unavailable in this environment."
+            ) from self.availability_error
+
         self.cache_parameters(model_size=model_name, segment_size=segment_size)
 
         for file_path in files:

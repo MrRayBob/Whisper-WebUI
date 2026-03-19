@@ -59,7 +59,13 @@ git clone https://github.com/jhj0517/Whisper-WebUI.git
 3. Build the image ( Image is about 7GB~ )
 
 ```sh
-docker compose build 
+docker compose build
+```
+
+If you need a different PyTorch wheel index, pass it as a build argument:
+
+```sh
+docker compose build --build-arg TORCH_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu126
 ```
 
 4. Run the container 
@@ -75,18 +81,17 @@ If needed, update the [`docker-compose.yaml`](https://github.com/jhj0517/Whisper
 - ## Run Locally
 
 ### Prerequisite
-To run this WebUI, you need to have `git`, `3.10 <= python <= 3.12`, `FFmpeg`.
+On Ubuntu, install `git`, `python3`, `python3-venv`, and `ffmpeg`. Python `3.10 ~ 3.12` is recommended.
 
-**Edit `--extra-index-url` in the [`requirements.txt`](https://github.com/jhj0517/Whisper-WebUI/blob/master/requirements.txt) to match your device.<br>** 
-By default, the WebUI assumes you're using an Nvidia GPU and **CUDA 12.8.** If you're using Intel or another CUDA version, read the [`requirements.txt`](https://github.com/jhj0517/Whisper-WebUI/blob/master/requirements.txt) and edit `--extra-index-url`.
+By default, the installer and Docker build use the NVIDIA CUDA 12.8 PyTorch wheel index. If you need a different wheel index, set `TORCH_EXTRA_INDEX_URL` before running the installer or pass `--build-arg TORCH_EXTRA_INDEX_URL=...` to Docker.
 
 Please follow the links below to install the necessary software:
 - git : [https://git-scm.com/downloads](https://git-scm.com/downloads)
-- python : [https://www.python.org/downloads/](https://www.python.org/downloads/) **`3.10 ~ 3.12` is recommended.** 
-- FFmpeg :  [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
+- python : [https://www.python.org/downloads/](https://www.python.org/downloads/) **`3.10 ~ 3.12` is recommended.**
+- FFmpeg : [https://ffmpeg.org/download.html](https://ffmpeg.org/download.html)
 - CUDA : [https://developer.nvidia.com/cuda-downloads](https://developer.nvidia.com/cuda-downloads)
 
-After installing FFmpeg, **make sure to add the `FFmpeg/bin` folder to your system PATH!**
+After installing FFmpeg, make sure `ffmpeg` is on your `PATH`.
 
 ### Installation Using the Script Files
 
@@ -94,8 +99,14 @@ After installing FFmpeg, **make sure to add the `FFmpeg/bin` folder to your syst
 ```shell
 git clone https://github.com/jhj0517/Whisper-WebUI.git
 ```
-2. Run `install.bat` or `install.sh` to install dependencies. (It will create a `venv` directory and install dependencies there.)
-3. Start WebUI with `start-webui.bat` or `start-webui.sh` (It will run `python app.py` after activating the venv)
+2. Run `install.bat` or `install.sh` to install dependencies. The script creates a `venv` directory, bootstraps `pip`, `setuptools`, and `wheel`, then installs the base requirements followed by the legacy Whisper package.
+3. Start WebUI with `start-webui.bat` or `start-webui.sh` (It will run `python3 app.py` after activating the venv)
+
+If you need a non-default wheel index on Ubuntu, run:
+
+```sh
+TORCH_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu126 ./Install.sh
+```
 
 And you can also run the project with command line arguments if you like to, see [wiki](https://github.com/jhj0517/Whisper-WebUI/wiki/Command-Line-Arguments) for a guide to arguments.
 

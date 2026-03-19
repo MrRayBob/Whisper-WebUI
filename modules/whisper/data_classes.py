@@ -169,25 +169,30 @@ class DiarizationParams(BaseParams):
     def to_gradio_inputs(cls,
                          defaults: Optional[Dict] = None,
                          available_devices: Optional[List] = None,
-                         device: Optional[str] = None) -> List[gr.components.base.FormComponent]:
+                         device: Optional[str] = None,
+                         enabled: bool = True) -> List[gr.components.base.FormComponent]:
         return [
             gr.Checkbox(
                 label=_("Enable Diarization"),
-                value=defaults.get("is_diarize", cls.__fields__["is_diarize"].default),
+                value=defaults.get("is_diarize", cls.__fields__["is_diarize"].default) if enabled else False,
+                interactive=enabled,
             ),
             gr.Dropdown(
                 label=_("Device"),
                 choices=["cpu", "cuda", "xpu"] if available_devices is None else available_devices,
                 value=defaults.get("device", device),
+                interactive=enabled,
             ),
             gr.Textbox(
                 label=_("HuggingFace Token"),
                 value=defaults.get("hf_token", cls.__fields__["hf_token"].default),
-                info=_("This is only needed the first time you download the model")
+                info=_("This is only needed the first time you download the model"),
+                interactive=enabled,
             ),
             gr.Checkbox(
                 label=_("Offload sub model when finished"),
                 value=defaults.get("enable_offload", cls.__fields__["enable_offload"].default),
+                interactive=enabled,
             )
         ]
 
@@ -219,12 +224,13 @@ class BGMSeparationParams(BaseParams):
                         defaults: Optional[Dict] = None,
                         available_devices: Optional[List] = None,
                         device: Optional[str] = None,
-                        available_models: Optional[List] = None) -> List[gr.components.base.FormComponent]:
+                        available_models: Optional[List] = None,
+                        enabled: bool = True) -> List[gr.components.base.FormComponent]:
         return [
             gr.Checkbox(
                 label=_("Enable Background Music Remover Filter"),
-                value=defaults.get("is_separate_bgm", cls.__fields__["is_separate_bgm"].default),
-                interactive=True,
+                value=defaults.get("is_separate_bgm", cls.__fields__["is_separate_bgm"].default) if enabled else False,
+                interactive=enabled,
                 info=_("Enabling this will remove background music")
             ),
             gr.Dropdown(
@@ -232,25 +238,30 @@ class BGMSeparationParams(BaseParams):
                 choices=["UVR-MDX-NET-Inst_HQ_4",
                          "UVR-MDX-NET-Inst_3"] if available_models is None else available_models,
                 value=defaults.get("uvr_model_size", cls.__fields__["uvr_model_size"].default),
+                interactive=enabled,
             ),
             gr.Dropdown(
                 label=_("Device"),
                 choices=["cpu", "cuda", "xpu"] if available_devices is None else available_devices,
                 value=defaults.get("device", device),
+                interactive=enabled,
             ),
             gr.Number(
                 label="Segment Size",
                 value=defaults.get("segment_size", cls.__fields__["segment_size"].default),
                 precision=0,
-                info="Segment size for UVR model"
+                info="Segment size for UVR model",
+                interactive=enabled,
             ),
             gr.Checkbox(
                 label=_("Save separated files to output"),
                 value=defaults.get("save_file", cls.__fields__["save_file"].default),
+                interactive=enabled,
             ),
             gr.Checkbox(
                 label=_("Offload sub model when finished"),
                 value=defaults.get("enable_offload", cls.__fields__["enable_offload"].default),
+                interactive=enabled,
             )
         ]
 

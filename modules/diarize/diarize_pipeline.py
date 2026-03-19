@@ -3,13 +3,21 @@
 import numpy as np
 import pandas as pd
 import os
-from pyannote.audio import Pipeline
 from typing import Optional, Union
 import torch
 
 from modules.whisper.data_classes import *
 from modules.utils.paths import DIARIZATION_MODELS_DIR
 from modules.diarize.audio_loader import load_audio, SAMPLE_RATE
+
+try:
+    from pyannote.audio import Pipeline
+    PYANNOTE_AVAILABLE = True
+    PYANNOTE_IMPORT_ERROR = None
+except Exception as exc:
+    Pipeline = None
+    PYANNOTE_AVAILABLE = False
+    PYANNOTE_IMPORT_ERROR = exc
 
 
 class DiarizationPipeline:
@@ -20,6 +28,10 @@ class DiarizationPipeline:
         use_auth_token=None,
         device: Optional[Union[str, torch.device]] = "cpu",
     ):
+        if not PYANNOTE_AVAILABLE:
+            raise RuntimeError(
+                "Speaker diarization requires pyannote.audio and its model dependencies."
+            ) from PYANNOTE_IMPORT_ERROR
         if isinstance(device, str):
             device = torch.device(device)
         self.model = Pipeline.from_pretrained(

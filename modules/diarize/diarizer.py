@@ -7,7 +7,12 @@ import logging
 import gc
 
 from modules.utils.paths import DIARIZATION_MODELS_DIR
-from modules.diarize.diarize_pipeline import DiarizationPipeline, assign_word_speakers
+from modules.diarize.diarize_pipeline import (
+    DiarizationPipeline,
+    PYANNOTE_AVAILABLE,
+    PYANNOTE_IMPORT_ERROR,
+    assign_word_speakers,
+)
 from modules.diarize.audio_loader import load_audio
 from modules.whisper.data_classes import *
 
@@ -22,6 +27,8 @@ class Diarizer:
         self.model_dir = model_dir
         os.makedirs(self.model_dir, exist_ok=True)
         self.pipe = None
+        self.available = PYANNOTE_AVAILABLE
+        self.availability_error = PYANNOTE_IMPORT_ERROR
 
     def run(self,
             audio: Union[str, BinaryIO, np.ndarray],
@@ -51,6 +58,11 @@ class Diarizer:
         elapsed_time: float
             elapsed time for running
         """
+        if not self.available:
+            raise RuntimeError(
+                "Speaker diarization is unavailable in this environment."
+            ) from self.availability_error
+
         start_time = time.time()
 
         if device is None:
@@ -103,6 +115,11 @@ class Diarizer:
         if device is None:
             device = self.get_device()
         self.device = device
+
+        if not self.available:
+            raise RuntimeError(
+                "Speaker diarization is unavailable in this environment."
+            ) from self.availability_error
 
         os.makedirs(self.model_dir, exist_ok=True)
 

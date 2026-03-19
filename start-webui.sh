@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source venv/bin/activate
-python app.py "$@"
+set -euo pipefail
 
-echo "launching the app"
+source venv/bin/activate
+exec python3 app.py "$@"

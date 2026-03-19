@@ -6,10 +6,18 @@ from modules.utils.paths import (FASTER_WHISPER_MODELS_DIR, DIARIZATION_MODELS_D
                                  INSANELY_FAST_WHISPER_MODELS_DIR, WHISPER_MODELS_DIR, UVR_MODELS_DIR)
 from modules.whisper.faster_whisper_inference import FasterWhisperInference
 from modules.whisper.whisper_Inference import WhisperInference
-from modules.whisper.insanely_fast_whisper_inference import InsanelyFastWhisperInference
 from modules.whisper.base_transcription_pipeline import BaseTranscriptionPipeline
 from modules.whisper.data_classes import *
 from modules.utils.logger import get_logger
+
+try:
+    from modules.whisper.insanely_fast_whisper_inference import InsanelyFastWhisperInference
+    INSANELY_FAST_WHISPER_AVAILABLE = True
+    INSANELY_FAST_WHISPER_IMPORT_ERROR = None
+except Exception as exc:
+    InsanelyFastWhisperInference = None
+    INSANELY_FAST_WHISPER_AVAILABLE = False
+    INSANELY_FAST_WHISPER_IMPORT_ERROR = exc
 
 
 logger = get_logger()
@@ -61,14 +69,17 @@ class WhisperFactory:
 
         if whisper_type == WhisperImpl.FASTER_WHISPER.value:
             if torch.xpu.is_available():
-                logger.warning("XPU is detected but faster-whisper only supports CUDA. "
-                               "Automatically switching to insanely-whisper implementation.")
-                return InsanelyFastWhisperInference(
-                    model_dir=insanely_fast_whisper_model_dir,
-                    output_dir=output_dir,
-                    diarization_model_dir=diarization_model_dir,
-                    uvr_model_dir=uvr_model_dir
-                )
+                if INSANELY_FAST_WHISPER_AVAILABLE:
+                    logger.warning("XPU is detected but faster-whisper only supports CUDA. "
+                                   "Automatically switching to insanely-whisper implementation.")
+                    return InsanelyFastWhisperInference(
+                        model_dir=insanely_fast_whisper_model_dir,
+                        output_dir=output_dir,
+                        diarization_model_dir=diarization_model_dir,
+                        uvr_model_dir=uvr_model_dir
+                    )
+                logger.warning("XPU is detected but insanely-fast-whisper is unavailable. "
+                               "Falling back to faster-whisper.")
 
             return FasterWhisperInference(
                 model_dir=faster_whisper_model_dir,
@@ -84,6 +95,16 @@ class WhisperFactory:
                 uvr_model_dir=uvr_model_dir
             )
         elif whisper_type == WhisperImpl.INSANELY_FAST_WHISPER.value:
+            if not INSANELY_FAST_WHISPER_AVAILABLE:
+                logger.warning("Insanely-fast-whisper is unavailable in this environment. "
+                               "Falling back to faster-whisper. "
+                               f"Error: {INSANELY_FAST_WHISPER_IMPORT_ERROR}")
+                return FasterWhisperInference(
+                    model_dir=faster_whisper_model_dir,
+                    output_dir=output_dir,
+                    diarization_model_dir=diarization_model_dir,
+                    uvr_model_dir=uvr_model_dir
+                )
             return InsanelyFastWhisperInference(
                 model_dir=insanely_fast_whisper_model_dir,
                 output_dir=output_dir,

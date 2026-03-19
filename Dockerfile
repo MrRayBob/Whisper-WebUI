@@ -1,4 +1,8 @@
+ARG TORCH_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cu128
+
 FROM debian:bookworm-slim AS builder
+
+ARG TORCH_EXTRA_INDEX_URL
 
 RUN apt-get update && \
     apt-get install -y curl git python3 python3-pip python3-venv && \
@@ -7,11 +11,13 @@ RUN apt-get update && \
 
 WORKDIR /Whisper-WebUI
 
-COPY requirements.txt .
+COPY requirements.txt requirements-legacy.txt .
 
 RUN python3 -m venv venv && \
     . venv/bin/activate && \
-    pip install -U -r requirements.txt
+    python3 -m pip install -U pip "setuptools<82" wheel && \
+    python3 -m pip install -r requirements.txt --extra-index-url "$TORCH_EXTRA_INDEX_URL" && \
+    python3 -m pip install --no-build-isolation -r requirements-legacy.txt
 
 
 FROM debian:bookworm-slim AS runtime
@@ -31,4 +37,4 @@ VOLUME [ "/Whisper-WebUI/outputs" ]
 ENV PATH="/Whisper-WebUI/venv/bin:$PATH"
 ENV LD_LIBRARY_PATH=/Whisper-WebUI/venv/lib64/python3.11/site-packages/nvidia/cublas/lib:/Whisper-WebUI/venv/lib64/python3.11/site-packages/nvidia/cudnn/lib
 
-ENTRYPOINT [ "python", "app.py" ]
+ENTRYPOINT [ "python3", "app.py" ]

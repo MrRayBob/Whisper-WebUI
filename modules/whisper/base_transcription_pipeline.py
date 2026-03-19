@@ -43,11 +43,15 @@ class BaseTranscriptionPipeline(ABC):
         self.diarizer = Diarizer(
             model_dir=diarization_model_dir
         )
+        self.diarizer_available = getattr(self.diarizer, "available", True)
+        self.diarizer_error = getattr(self.diarizer, "availability_error", None)
         self.vad = SileroVAD()
         self.music_separator = MusicSeparator(
             model_dir=uvr_model_dir,
             output_dir=os.path.join(output_dir, "UVR")
         )
+        self.music_separator_available = getattr(self.music_separator, "available", True)
+        self.music_separator_error = getattr(self.music_separator, "availability_error", None)
 
         self.model = None
         self.current_model_size = None
@@ -124,7 +128,7 @@ class BaseTranscriptionPipeline(ABC):
         params = self.validate_gradio_values(params)
         bgm_params, vad_params, whisper_params, diarization_params = params.bgm_separation, params.vad, params.whisper, params.diarization
 
-        if bgm_params.is_separate_bgm:
+        if bgm_params.is_separate_bgm and self.music_separator_available:
             music, audio, _ = self.music_separator.separate(
                 audio=audio,
                 model_name=bgm_params.uvr_model_size,
@@ -145,6 +149,10 @@ class BaseTranscriptionPipeline(ABC):
             if bgm_params.enable_offload:
                 self.music_separator.offload()
             elapsed_time_bgm_sep = time.time() - start_time
+        elif bgm_params.is_separate_bgm:
+            logger.warning(
+                "Skipping background music separation because the feature is unavailable in this environment."
+            )
 
         origin_audio = deepcopy(audio)
 
@@ -188,7 +196,7 @@ class BaseTranscriptionPipeline(ABC):
             else:
                 logger.info("VAD detected no speech segments in the audio.")
 
-        if diarization_params.is_diarize:
+        if diarization_params.is_diarize and self.diarizer_available:
             progress(0.99, desc="Diarizing speakers..")
             result, elapsed_time_diarization = self.diarizer.run(
                 audio=origin_audio,
@@ -198,6 +206,10 @@ class BaseTranscriptionPipeline(ABC):
             )
             if diarization_params.enable_offload:
                 self.diarizer.offload()
+        elif diarization_params.is_diarize:
+            logger.warning(
+                "Skipping diarization because the feature is unavailable in this environment."
+            )
 
         self.cache_parameters(
             params=params,

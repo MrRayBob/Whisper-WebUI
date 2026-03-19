@@ -1,5 +1,7 @@
 import os
 import argparse
+import subprocess
+import sys
 import gradio as gr
 from gradio_i18n import Translate, gettext as _
 import yaml
@@ -24,8 +26,9 @@ logger = get_logger()
 class App:
     def __init__(self, args):
         self.args = args
+        self.theme = self._resolve_theme()
         # Check every 1 hour (3600) for cached files and delete them if older than 1 day (86400)
-        self.app = gr.Blocks(css=CSS, theme=self.args.theme, delete_cache=(3600, 86400))
+        self.app = gr.Blocks(css=CSS, theme=self.theme, delete_cache=(3600, 86400))
         self.whisper_inf = WhisperFactory.create_whisper_inference(
             whisper_type=self.args.whisper_type,
             whisper_model_dir=self.args.whisper_model_dir,
@@ -46,11 +49,18 @@ class App:
         logger.info(f"Use \"{self.args.whisper_type}\" implementation\n"
                     f"Device \"{self.whisper_inf.device}\" is detected")
 
+    def _resolve_theme(self):
+        if self.args.theme:
+            return self.args.theme
+        return build_default_theme()
+
     def create_pipeline_inputs(self):
         whisper_params = self.default_params["whisper"]
         vad_params = self.default_params["vad"]
         diarization_params = self.default_params["diarization"]
         uvr_params = self.default_params["bgm_separation"]
+        uvr_enabled = getattr(self.whisper_inf, "music_separator_available", True)
+        diarization_enabled = getattr(self.whisper_inf, "diarizer_available", True)
 
         with gr.Row():
             dd_model = gr.Dropdown(choices=self.whisper_inf.available_models, value=whisper_params["model_size"],
@@ -74,18 +84,24 @@ class App:
                                                             compute_type=self.whisper_inf.current_compute_type)
 
         with gr.Accordion(_("Background Music Remover Filter"), open=False):
+            if not uvr_enabled:
+                gr.Markdown(BGM_UNAVAILABLE, elem_classes=["feature-note"])
             uvr_inputs = BGMSeparationParams.to_gradio_input(defaults=uvr_params,
                                                              available_models=self.whisper_inf.music_separator.available_models,
                                                              available_devices=self.whisper_inf.music_separator.available_devices,
-                                                             device=self.whisper_inf.music_separator.device)
+                                                             device=self.whisper_inf.music_separator.device,
+                                                             enabled=uvr_enabled)
 
         with gr.Accordion(_("Voice Detection Filter"), open=False):
             vad_inputs = VadParams.to_gradio_inputs(defaults=vad_params)
 
         with gr.Accordion(_("Diarization"), open=False):
+            if not diarization_enabled:
+                gr.Markdown(DIARIZATION_UNAVAILABLE, elem_classes=["feature-note"])
             diarization_inputs = DiarizationParams.to_gradio_inputs(defaults=diarization_params,
                                                                     available_devices=self.whisper_inf.diarizer.available_device,
-                                                                    device=self.whisper_inf.diarizer.device)
+                                                                    device=self.whisper_inf.diarizer.device,
+                                                                    enabled=diarization_enabled)
 
         pipeline_inputs = [dd_model, dd_lang, cb_translate] + whisper_inputs + vad_inputs + diarization_inputs + uvr_inputs
 
@@ -100,6 +116,8 @@ class App:
         deepl_params = translation_params["deepl"]
         nllb_params = translation_params["nllb"]
         uvr_params = self.default_params["bgm_separation"]
+        uvr_enabled = getattr(self.whisper_inf, "music_separator_available", True)
+        nllb_enabled = getattr(self.nllb_inf, "available", True)
 
         with self.app:
             lang = gr.Radio(choices=list(self.i18n.keys()),
@@ -107,201 +125,223 @@ class App:
                             visible=False,  # Set it by development purpose.
                             )
             with Translate(self.i18n):  # Add `lang = lang` here to test dynamic change of the languages.
-                with gr.Row():
-                    with gr.Column():
+                with gr.Column(elem_classes=["app-shell"]):
+                    with gr.Column(elem_classes=["hero-card"]):
                         gr.Markdown(MARKDOWN, elem_id="md_project")
-                with gr.Tabs():
-                    with gr.TabItem(_("File")):  # tab1
-                        with gr.Column():
-                            input_file = gr.Files(type="filepath", label=_("Upload File here"), file_types=MEDIA_EXTENSION)
-                            tb_input_folder = gr.Textbox(label="Input Folder Path (Optional)",
-                                                         info="Optional: Specify the folder path where the input files are located, if you prefer to use local files instead of uploading them."
-                                                              " Leave this field empty if you do not wish to use a local path.",
-                                                         visible=self.args.colab,
-                                                         value="")
-                            cb_include_subdirectory = gr.Checkbox(label="Include Subdirectory Files",
-                                                                  info="When using Input Folder Path above, whether to include all files in the subdirectory or not.",
-                                                                  visible=self.args.colab,
-                                                                  value=False)
-                            cb_save_same_dir = gr.Checkbox(label="Save outputs at same directory",
-                                                           info="When using Input Folder Path above, whether to save output in the same directory as inputs or not, in addition to the original"
-                                                                " output directory.",
-                                                           visible=self.args.colab,
-                                                           value=True)
-                        pipeline_params, dd_file_format, cb_timestamp = self.create_pipeline_inputs()
+                    with gr.Column(elem_classes=["content-card"]):
+                        with gr.Tabs():
+                            with gr.TabItem(_("File")):  # tab1
+                                gr.Markdown(FILE_HELPER, elem_classes=["tab-note"])
+                                with gr.Column(elem_classes=["section-card"]):
+                                    input_file = gr.Files(type="filepath", label=_("Upload File here"), file_types=MEDIA_EXTENSION)
+                                    tb_input_folder = gr.Textbox(label="Input Folder Path (Optional)",
+                                                                 info="Optional: Specify the folder path where the input files are located, if you prefer to use local files instead of uploading them."
+                                                                      " Leave this field empty if you do not wish to use a local path.",
+                                                                 visible=self.args.colab,
+                                                                 value="")
+                                    cb_include_subdirectory = gr.Checkbox(label="Include Subdirectory Files",
+                                                                          info="When using Input Folder Path above, whether to include all files in the subdirectory or not.",
+                                                                          visible=self.args.colab,
+                                                                          value=False)
+                                    cb_save_same_dir = gr.Checkbox(label="Save outputs at same directory",
+                                                                   info="When using Input Folder Path above, whether to save output in the same directory as inputs or not, in addition to the original"
+                                                                        " output directory.",
+                                                                   visible=self.args.colab,
+                                                                   value=True)
+                                pipeline_params, dd_file_format, cb_timestamp = self.create_pipeline_inputs()
 
-                        with gr.Row():
-                            btn_run = gr.Button(_("GENERATE SUBTITLE FILE"), variant="primary")
-                        with gr.Row():
-                            tb_indicator = gr.Textbox(label=_("Output"), scale=5)
-                            files_subtitles = gr.Files(label=_("Downloadable output file"), scale=3, interactive=False)
-                            btn_openfolder = gr.Button('📂', scale=1)
+                                with gr.Row():
+                                    btn_run = gr.Button(_("GENERATE SUBTITLE FILE"), variant="primary")
+                                with gr.Column(elem_classes=["result-card"]):
+                                    with gr.Row():
+                                        tb_indicator = gr.Textbox(label=_("Output"), scale=5)
+                                        files_subtitles = gr.Files(label=_("Downloadable output file"), scale=3, interactive=False)
+                                        btn_openfolder = gr.Button('📂', scale=1)
 
-                        params = [input_file, tb_input_folder, cb_include_subdirectory, cb_save_same_dir,
-                                  dd_file_format, cb_timestamp]
-                        params = params + pipeline_params
-                        btn_run.click(fn=self.whisper_inf.transcribe_file,
-                                      inputs=params,
-                                      outputs=[tb_indicator, files_subtitles])
-                        btn_openfolder.click(fn=lambda: self.open_folder("outputs"), inputs=None, outputs=None)
+                                params = [input_file, tb_input_folder, cb_include_subdirectory, cb_save_same_dir,
+                                          dd_file_format, cb_timestamp]
+                                params = params + pipeline_params
+                                btn_run.click(fn=self.whisper_inf.transcribe_file,
+                                              inputs=params,
+                                              outputs=[tb_indicator, files_subtitles])
+                                btn_openfolder.click(fn=lambda: self.open_folder("outputs"), inputs=None, outputs=None)
 
-                    with gr.TabItem(_("Youtube")):  # tab2
-                        with gr.Row():
-                            tb_youtubelink = gr.Textbox(label=_("Youtube Link"))
-                        with gr.Row(equal_height=True):
-                            with gr.Column():
-                                img_thumbnail = gr.Image(label=_("Youtube Thumbnail"))
-                            with gr.Column():
-                                tb_title = gr.Label(label=_("Youtube Title"))
-                                tb_description = gr.Textbox(label=_("Youtube Description"), max_lines=15)
+                            with gr.TabItem(_("Youtube")):  # tab2
+                                gr.Markdown(YOUTUBE_HELPER, elem_classes=["tab-note"])
+                                with gr.Row():
+                                    tb_youtubelink = gr.Textbox(label=_("Youtube Link"))
+                                with gr.Row(equal_height=True):
+                                    with gr.Column():
+                                        img_thumbnail = gr.Image(label=_("Youtube Thumbnail"))
+                                    with gr.Column():
+                                        tb_title = gr.Label(label=_("Youtube Title"))
+                                        tb_description = gr.Textbox(label=_("Youtube Description"), max_lines=15)
 
-                        pipeline_params, dd_file_format, cb_timestamp = self.create_pipeline_inputs()
+                                pipeline_params, dd_file_format, cb_timestamp = self.create_pipeline_inputs()
 
-                        with gr.Row():
-                            btn_run = gr.Button(_("GENERATE SUBTITLE FILE"), variant="primary")
-                        with gr.Row():
-                            tb_indicator = gr.Textbox(label=_("Output"), scale=5)
-                            files_subtitles = gr.Files(label=_("Downloadable output file"), scale=3)
-                            btn_openfolder = gr.Button('📂', scale=1)
+                                with gr.Row():
+                                    btn_run = gr.Button(_("GENERATE SUBTITLE FILE"), variant="primary")
+                                with gr.Column(elem_classes=["result-card"]):
+                                    with gr.Row():
+                                        tb_indicator = gr.Textbox(label=_("Output"), scale=5)
+                                        files_subtitles = gr.Files(label=_("Downloadable output file"), scale=3)
+                                        btn_openfolder = gr.Button('📂', scale=1)
 
-                        params = [tb_youtubelink, dd_file_format, cb_timestamp]
+                                params = [tb_youtubelink, dd_file_format, cb_timestamp]
 
-                        btn_run.click(fn=self.whisper_inf.transcribe_youtube,
-                                      inputs=params + pipeline_params,
-                                      outputs=[tb_indicator, files_subtitles])
-                        tb_youtubelink.change(get_ytmetas, inputs=[tb_youtubelink],
-                                              outputs=[img_thumbnail, tb_title, tb_description])
-                        btn_openfolder.click(fn=lambda: self.open_folder("outputs"), inputs=None, outputs=None)
+                                btn_run.click(fn=self.whisper_inf.transcribe_youtube,
+                                              inputs=params + pipeline_params,
+                                              outputs=[tb_indicator, files_subtitles])
+                                tb_youtubelink.change(get_ytmetas, inputs=[tb_youtubelink],
+                                                      outputs=[img_thumbnail, tb_title, tb_description])
+                                btn_openfolder.click(fn=lambda: self.open_folder("outputs"), inputs=None, outputs=None)
 
-                    with gr.TabItem(_("Mic")):  # tab3
-                        with gr.Row():
-                            mic_input = gr.Microphone(label=_("Record with Mic"), type="filepath", interactive=True,
-                                                      show_download_button=True)
+                            with gr.TabItem(_("Mic")):  # tab3
+                                gr.Markdown(MIC_HELPER, elem_classes=["tab-note"])
+                                with gr.Row():
+                                    mic_input = gr.Microphone(label=_("Record with Mic"), type="filepath", interactive=True,
+                                                              show_download_button=True)
 
-                        pipeline_params, dd_file_format, cb_timestamp = self.create_pipeline_inputs()
+                                pipeline_params, dd_file_format, cb_timestamp = self.create_pipeline_inputs()
 
-                        with gr.Row():
-                            btn_run = gr.Button(_("GENERATE SUBTITLE FILE"), variant="primary")
-                        with gr.Row():
-                            tb_indicator = gr.Textbox(label=_("Output"), scale=5)
-                            files_subtitles = gr.Files(label=_("Downloadable output file"), scale=3)
-                            btn_openfolder = gr.Button('📂', scale=1)
+                                with gr.Row():
+                                    btn_run = gr.Button(_("GENERATE SUBTITLE FILE"), variant="primary")
+                                with gr.Column(elem_classes=["result-card"]):
+                                    with gr.Row():
+                                        tb_indicator = gr.Textbox(label=_("Output"), scale=5)
+                                        files_subtitles = gr.Files(label=_("Downloadable output file"), scale=3)
+                                        btn_openfolder = gr.Button('📂', scale=1)
 
-                        params = [mic_input, dd_file_format, cb_timestamp]
+                                params = [mic_input, dd_file_format, cb_timestamp]
 
-                        btn_run.click(fn=self.whisper_inf.transcribe_mic,
-                                      inputs=params + pipeline_params,
-                                      outputs=[tb_indicator, files_subtitles])
-                        btn_openfolder.click(fn=lambda: self.open_folder("outputs"), inputs=None, outputs=None)
+                                btn_run.click(fn=self.whisper_inf.transcribe_mic,
+                                              inputs=params + pipeline_params,
+                                              outputs=[tb_indicator, files_subtitles])
+                                btn_openfolder.click(fn=lambda: self.open_folder("outputs"), inputs=None, outputs=None)
 
-                    with gr.TabItem(_("T2T Translation")):  # tab 4
-                        with gr.Row():
-                            file_subs = gr.Files(type="filepath", label=_("Upload Subtitle Files to translate here"))
+                            with gr.TabItem(_("T2T Translation")):  # tab 4
+                                with gr.Row():
+                                    file_subs = gr.Files(type="filepath", label=_("Upload Subtitle Files to translate here"))
 
-                        with gr.TabItem(_("DeepL API")):  # sub tab1
-                            with gr.Row():
-                                tb_api_key = gr.Textbox(label=_("Your Auth Key (API KEY)"),
-                                                        value=deepl_params["api_key"])
-                            with gr.Row():
-                                dd_source_lang = gr.Dropdown(label=_("Source Language"),
-                                                             value=AUTOMATIC_DETECTION if deepl_params["source_lang"] == AUTOMATIC_DETECTION.unwrap()
-                                                             else deepl_params["source_lang"],
-                                                             choices=list(self.deepl_api.available_source_langs.keys()))
-                                dd_target_lang = gr.Dropdown(label=_("Target Language"),
-                                                             value=deepl_params["target_lang"],
-                                                             choices=list(self.deepl_api.available_target_langs.keys()))
-                            with gr.Row():
-                                cb_is_pro = gr.Checkbox(label=_("Pro User?"), value=deepl_params["is_pro"])
-                            with gr.Row():
-                                cb_timestamp = gr.Checkbox(value=translation_params["add_timestamp"],
-                                                           label=_("Add a timestamp to the end of the filename"),
-                                                           interactive=True)
-                            with gr.Row():
-                                btn_run = gr.Button(_("TRANSLATE SUBTITLE FILE"), variant="primary")
-                            with gr.Row():
-                                tb_indicator = gr.Textbox(label=_("Output"), scale=5)
-                                files_subtitles = gr.Files(label=_("Downloadable output file"), scale=3)
-                                btn_openfolder = gr.Button('📂', scale=1)
+                                with gr.TabItem(_("DeepL API")):  # sub tab1
+                                    with gr.Row():
+                                        tb_api_key = gr.Textbox(label=_("Your Auth Key (API KEY)"),
+                                                                value=deepl_params["api_key"])
+                                    with gr.Row():
+                                        dd_source_lang = gr.Dropdown(label=_("Source Language"),
+                                                                     value=AUTOMATIC_DETECTION if deepl_params["source_lang"] == AUTOMATIC_DETECTION.unwrap()
+                                                                     else deepl_params["source_lang"],
+                                                                     choices=list(self.deepl_api.available_source_langs.keys()))
+                                        dd_target_lang = gr.Dropdown(label=_("Target Language"),
+                                                                     value=deepl_params["target_lang"],
+                                                                     choices=list(self.deepl_api.available_target_langs.keys()))
+                                    with gr.Row():
+                                        cb_is_pro = gr.Checkbox(label=_("Pro User?"), value=deepl_params["is_pro"])
+                                    with gr.Row():
+                                        cb_timestamp = gr.Checkbox(value=translation_params["add_timestamp"],
+                                                                   label=_("Add a timestamp to the end of the filename"),
+                                                                   interactive=True)
+                                    with gr.Row():
+                                        btn_run = gr.Button(_("TRANSLATE SUBTITLE FILE"), variant="primary")
+                                    with gr.Column(elem_classes=["result-card"]):
+                                        with gr.Row():
+                                            tb_indicator = gr.Textbox(label=_("Output"), scale=5)
+                                            files_subtitles = gr.Files(label=_("Downloadable output file"), scale=3)
+                                            btn_openfolder = gr.Button('📂', scale=1)
 
-                        btn_run.click(fn=self.deepl_api.translate_deepl,
-                                      inputs=[tb_api_key, file_subs, dd_source_lang, dd_target_lang,
-                                              cb_is_pro, cb_timestamp],
-                                      outputs=[tb_indicator, files_subtitles])
+                                btn_run.click(fn=self.deepl_api.translate_deepl,
+                                              inputs=[tb_api_key, file_subs, dd_source_lang, dd_target_lang,
+                                                      cb_is_pro, cb_timestamp],
+                                              outputs=[tb_indicator, files_subtitles])
 
-                        btn_openfolder.click(
-                            fn=lambda: self.open_folder(os.path.join(self.args.output_dir, "translations")),
-                            inputs=None,
-                            outputs=None)
+                                btn_openfolder.click(
+                                    fn=lambda: self.open_folder(os.path.join(self.args.output_dir, "translations")),
+                                    inputs=None,
+                                    outputs=None)
 
-                        with gr.TabItem(_("NLLB")):  # sub tab2
-                            with gr.Row():
-                                dd_model_size = gr.Dropdown(label=_("Model"), value=nllb_params["model_size"],
-                                                            choices=self.nllb_inf.available_models)
-                                dd_source_lang = gr.Dropdown(label=_("Source Language"),
-                                                             value=nllb_params["source_lang"],
-                                                             choices=self.nllb_inf.available_source_langs)
-                                dd_target_lang = gr.Dropdown(label=_("Target Language"),
-                                                             value=nllb_params["target_lang"],
-                                                             choices=self.nllb_inf.available_target_langs)
-                            with gr.Row():
-                                nb_max_length = gr.Number(label="Max Length Per Line", value=nllb_params["max_length"],
-                                                          precision=0)
-                            with gr.Row():
-                                cb_timestamp = gr.Checkbox(value=translation_params["add_timestamp"],
-                                                           label=_("Add a timestamp to the end of the filename"),
-                                                           interactive=True)
-                            with gr.Row():
-                                btn_run = gr.Button(_("TRANSLATE SUBTITLE FILE"), variant="primary")
-                            with gr.Row():
-                                tb_indicator = gr.Textbox(label=_("Output"), scale=5)
-                                files_subtitles = gr.Files(label=_("Downloadable output file"), scale=3)
-                                btn_openfolder = gr.Button('📂', scale=1)
-                            with gr.Column():
-                                md_vram_table = gr.HTML(NLLB_VRAM_TABLE, elem_id="md_nllb_vram_table")
+                                with gr.TabItem(_("NLLB")):  # sub tab2
+                                    if not nllb_enabled:
+                                        gr.Markdown(NLLB_UNAVAILABLE, elem_classes=["feature-note"])
+                                    with gr.Row():
+                                        dd_model_size = gr.Dropdown(label=_("Model"), value=nllb_params["model_size"],
+                                                                    choices=self.nllb_inf.available_models,
+                                                                    interactive=nllb_enabled)
+                                        dd_source_lang = gr.Dropdown(label=_("Source Language"),
+                                                                     value=nllb_params["source_lang"],
+                                                                     choices=self.nllb_inf.available_source_langs,
+                                                                     interactive=nllb_enabled)
+                                        dd_target_lang = gr.Dropdown(label=_("Target Language"),
+                                                                     value=nllb_params["target_lang"],
+                                                                     choices=self.nllb_inf.available_target_langs,
+                                                                     interactive=nllb_enabled)
+                                    with gr.Row():
+                                        nb_max_length = gr.Number(label="Max Length Per Line", value=nllb_params["max_length"],
+                                                                  precision=0, interactive=nllb_enabled)
+                                    with gr.Row():
+                                        cb_timestamp = gr.Checkbox(value=translation_params["add_timestamp"],
+                                                                   label=_("Add a timestamp to the end of the filename"),
+                                                                   interactive=nllb_enabled)
+                                    with gr.Row():
+                                        btn_run = gr.Button(_("TRANSLATE SUBTITLE FILE"), variant="primary",
+                                                            interactive=nllb_enabled)
+                                    with gr.Column(elem_classes=["result-card"]):
+                                        with gr.Row():
+                                            tb_indicator = gr.Textbox(label=_("Output"), scale=5, interactive=nllb_enabled)
+                                            files_subtitles = gr.Files(label=_("Downloadable output file"), scale=3,
+                                                                       interactive=nllb_enabled)
+                                            btn_openfolder = gr.Button('📂', scale=1, interactive=nllb_enabled)
+                                    with gr.Column():
+                                        md_vram_table = gr.HTML(NLLB_VRAM_TABLE, elem_id="md_nllb_vram_table")
 
-                        btn_run.click(fn=self.nllb_inf.translate_file,
-                                      inputs=[file_subs, dd_model_size, dd_source_lang, dd_target_lang,
-                                              nb_max_length, cb_timestamp],
-                                      outputs=[tb_indicator, files_subtitles])
+                                    btn_run.click(fn=self.nllb_inf.translate_file,
+                                                  inputs=[file_subs, dd_model_size, dd_source_lang, dd_target_lang,
+                                                          nb_max_length, cb_timestamp],
+                                                  outputs=[tb_indicator, files_subtitles])
 
-                        btn_openfolder.click(
-                            fn=lambda: self.open_folder(os.path.join(self.args.output_dir, "translations")),
-                            inputs=None,
-                            outputs=None)
+                                    btn_openfolder.click(
+                                        fn=lambda: self.open_folder(os.path.join(self.args.output_dir, "translations")),
+                                        inputs=None,
+                                        outputs=None)
 
-                    with gr.TabItem(_("BGM Separation")):
-                        files_audio = gr.Files(type="filepath", label=_("Upload Audio Files to separate background music"))
-                        dd_uvr_device = gr.Dropdown(label=_("Device"), value=self.whisper_inf.music_separator.device,
-                                                    choices=self.whisper_inf.music_separator.available_devices)
-                        dd_uvr_model_size = gr.Dropdown(label=_("Model"), value=uvr_params["uvr_model_size"],
-                                                        choices=self.whisper_inf.music_separator.available_models)
-                        nb_uvr_segment_size = gr.Number(label="Segment Size", value=uvr_params["segment_size"],
-                                                        precision=0)
-                        cb_uvr_save_file = gr.Checkbox(label=_("Save separated files to output"),
-                                                       value=True, visible=False)
-                        btn_run = gr.Button(_("SEPARATE BACKGROUND MUSIC"), variant="primary")
-                        with gr.Column():
-                            with gr.Row():
-                                ad_instrumental = gr.Audio(label=_("Instrumental"), scale=8)
-                                btn_open_instrumental_folder = gr.Button('📂', scale=1)
-                            with gr.Row():
-                                ad_vocals = gr.Audio(label=_("Vocals"), scale=8)
-                                btn_open_vocals_folder = gr.Button('📂', scale=1)
+                            with gr.TabItem(_("BGM Separation")):
+                                if not uvr_enabled:
+                                    gr.Markdown(BGM_UNAVAILABLE, elem_classes=["feature-note"])
+                                files_audio = gr.Files(type="filepath", label=_("Upload Audio Files to separate background music"))
+                                dd_uvr_device = gr.Dropdown(label=_("Device"), value=self.whisper_inf.music_separator.device,
+                                                            choices=self.whisper_inf.music_separator.available_devices,
+                                                            interactive=uvr_enabled)
+                                dd_uvr_model_size = gr.Dropdown(label=_("Model"), value=uvr_params["uvr_model_size"],
+                                                                choices=self.whisper_inf.music_separator.available_models,
+                                                                interactive=uvr_enabled)
+                                nb_uvr_segment_size = gr.Number(label="Segment Size", value=uvr_params["segment_size"],
+                                                                precision=0, interactive=uvr_enabled)
+                                cb_uvr_save_file = gr.Checkbox(label=_("Save separated files to output"),
+                                                               value=True, visible=False,
+                                                               interactive=uvr_enabled)
+                                btn_run = gr.Button(_("SEPARATE BACKGROUND MUSIC"), variant="primary",
+                                                    interactive=uvr_enabled)
+                                with gr.Column(elem_classes=["result-card"]):
+                                    with gr.Row():
+                                        ad_instrumental = gr.Audio(label=_("Instrumental"), scale=8)
+                                        btn_open_instrumental_folder = gr.Button('📂', scale=1)
+                                    with gr.Row():
+                                        ad_vocals = gr.Audio(label=_("Vocals"), scale=8)
+                                        btn_open_vocals_folder = gr.Button('📂', scale=1)
 
-                        btn_run.click(fn=self.whisper_inf.music_separator.separate_files,
-                                      inputs=[files_audio, dd_uvr_model_size, dd_uvr_device, nb_uvr_segment_size,
-                                              cb_uvr_save_file],
-                                      outputs=[ad_instrumental, ad_vocals])
-                        btn_open_instrumental_folder.click(inputs=None,
-                                                           outputs=None,
-                                                           fn=lambda: self.open_folder(os.path.join(
-                                                               self.args.output_dir, "UVR", "instrumental"
-                                                           )))
-                        btn_open_vocals_folder.click(inputs=None,
-                                                     outputs=None,
-                                                     fn=lambda: self.open_folder(os.path.join(
-                                                         self.args.output_dir, "UVR", "vocals"
-                                                     )))
+                                btn_run.click(fn=self.whisper_inf.music_separator.separate_files,
+                                              inputs=[files_audio, dd_uvr_model_size, dd_uvr_device, nb_uvr_segment_size,
+                                                      cb_uvr_save_file],
+                                              outputs=[ad_instrumental, ad_vocals])
+                                btn_open_instrumental_folder.click(inputs=None,
+                                                                   outputs=None,
+                                                                   fn=lambda: self.open_folder(os.path.join(
+                                                                       self.args.output_dir, "UVR", "instrumental"
+                                                                   )))
+                                btn_open_vocals_folder.click(inputs=None,
+                                                             outputs=None,
+                                                             fn=lambda: self.open_folder(os.path.join(
+                                                                 self.args.output_dir, "UVR", "vocals"
+                                                             )))
 
         # Launch the app with optional gradio settings
         args = self.args
@@ -323,11 +363,17 @@ class App:
 
     @staticmethod
     def open_folder(folder_path: str):
-        if os.path.exists(folder_path):
-            os.system(f"start {folder_path}")
-        else:
-            os.makedirs(folder_path, exist_ok=True)
-            logger.info(f"The directory path {folder_path} has newly created.")
+        os.makedirs(folder_path, exist_ok=True)
+
+        try:
+            if os.name == "nt":
+                os.startfile(folder_path)
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", folder_path])
+            else:
+                subprocess.Popen(["xdg-open", folder_path])
+        except Exception as exc:
+            logger.info(f"Could not open folder {folder_path}: {exc}")
 
 
 parser = argparse.ArgumentParser()
