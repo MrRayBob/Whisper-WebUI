@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Whisper WebUI</title>
+  <meta name="description" content="Minimal Whisper transcription interface">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <main class="app-shell">
+    <header class="masthead card">
+      <div>
+        <p class="eyebrow">Whisper WebUI</p>
+        <h1>Minimal transcription</h1>
+        <p class="lede">File, YouTube, microphone, and one utility surface in a stripped-back shell. Advanced controls stay hidden until you need them.</p>
+      </div>
+      <div class="status-pill" id="connectionStatus">Ready</div>
+    </header>
+
+    <nav class="tabs card" aria-label="Primary sections">
+      <button class="tab active" type="button" data-panel="file">File</button>
+      <button class="tab" type="button" data-panel="youtube">YouTube</button>
+      <button class="tab" type="button" data-panel="mic">Mic</button>
+      <button class="tab" type="button" data-panel="utilities">Utilities</button>
+    </nav>
+
+    <section class="panel active" id="panel-file" data-panel="file">
+      <div class="panel-grid">
+        <article class="card form-card">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">File</p>
+              <h2>Upload local media</h2>
+            </div>
+            <p class="muted">Transcribe local audio or video and download subtitles directly in the browser.</p>
+          </div>
+          <form class="job-form" data-job="file" data-endpoint="/transcription/file">
+            <div data-fields="file-basic"></div>
+            <details class="drawer">
+              <summary>Advanced</summary>
+              <div data-fields="transcription-advanced"></div>
+            </details>
+            <div class="actions">
+              <button class="primary" type="submit">Transcribe file</button>
+            </div>
+          </form>
+        </article>
+
+        <aside class="card result-card">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Result</p>
+              <h2>Preview</h2>
+            </div>
+            <div class="progress-shell" aria-hidden="true"><div class="progress-bar" data-progress="file"></div></div>
+          </div>
+          <div class="status-line"><span data-status="file">Idle</span><span data-meta="file"></span></div>
+          <div class="preview" data-preview="file">
+            <p class="muted">Submit a file to see segment preview and download controls here.</p>
+          </div>
+          <div class="download-row" data-download="file"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-youtube" data-panel="youtube">
+      <div class="panel-grid">
+        <article class="card form-card">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">YouTube</p>
+              <h2>Transcribe a link</h2>
+            </div>
+            <p class="muted">Paste a URL and run the same subtitle pipeline without the old metadata-heavy layout.</p>
+          </div>
+          <form class="job-form" data-job="youtube" data-endpoint="/transcription/youtube">
+            <div data-fields="youtube-basic"></div>
+            <details class="drawer">
+              <summary>Advanced</summary>
+              <div data-fields="transcription-advanced"></div>
+            </details>
+            <div class="actions">
+              <button class="primary" type="submit">Transcribe YouTube audio</button>
+            </div>
+          </form>
+        </article>
+
+        <aside class="card result-card">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Result</p>
+              <h2>Preview</h2>
+            </div>
+            <div class="progress-shell" aria-hidden="true"><div class="progress-bar" data-progress="youtube"></div></div>
+          </div>
+          <div class="status-line"><span data-status="youtube">Idle</span><span data-meta="youtube"></span></div>
+          <div class="preview" data-preview="youtube">
+            <p class="muted">Queue a YouTube job to preview transcript segments and download the subtitle file here.</p>
+          </div>
+          <div class="download-row" data-download="youtube"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-mic" data-panel="mic">
+      <div class="panel-grid">
+        <article class="card form-card">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Mic</p>
+              <h2>Record in browser</h2>
+            </div>
+            <p class="muted">Capture audio locally, then send the recording into the same transcription pipeline.</p>
+          </div>
+          <form class="job-form" data-job="mic" data-endpoint="/transcription/mic">
+            <div class="recorder" data-recorder>
+              <div class="recorder-controls">
+                <button class="secondary" type="button" data-action="record-start">Start</button>
+                <button class="secondary" type="button" data-action="record-stop" disabled>Stop</button>
+                <button class="ghost" type="button" data-action="record-clear" disabled>Clear</button>
+              </div>
+              <div class="recorder-state" data-recorder-state>Idle</div>
+              <audio controls hidden data-recorder-playback></audio>
+            </div>
+            <div data-fields="mic-basic"></div>
+            <details class="drawer">
+              <summary>Advanced</summary>
+              <div data-fields="transcription-advanced"></div>
+            </details>
+            <div class="actions">
+              <button class="primary" type="submit">Transcribe recording</button>
+            </div>
+          </form>
+        </article>
+
+        <aside class="card result-card">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Result</p>
+              <h2>Preview</h2>
+            </div>
+            <div class="progress-shell" aria-hidden="true"><div class="progress-bar" data-progress="mic"></div></div>
+          </div>
+          <div class="status-line"><span data-status="mic">Idle</span><span data-meta="mic"></span></div>
+          <div class="preview" data-preview="mic">
+            <p class="muted">Record audio first, then submit to preview the transcript.</p>
+          </div>
+          <div class="download-row" data-download="mic"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="panel" id="panel-utilities" data-panel="utilities">
+      <div class="panel-grid">
+        <article class="card form-card">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Utilities</p>
+              <h2>BGM separation</h2>
+            </div>
+            <p class="muted">Keep the non-essential tooling separate from transcription so the primary path stays quiet.</p>
+          </div>
+          <form class="job-form" data-job="bgm" data-endpoint="/bgm-separation">
+            <div data-fields="bgm-basic"></div>
+            <details class="drawer">
+              <summary>Advanced</summary>
+              <div data-fields="bgm-advanced"></div>
+            </details>
+            <div class="actions">
+              <button class="primary" type="submit">Separate background music</button>
+            </div>
+          </form>
+        </article>
+
+        <aside class="card result-card">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">Result</p>
+              <h2>Downloads</h2>
+            </div>
+            <div class="progress-shell" aria-hidden="true"><div class="progress-bar" data-progress="bgm"></div></div>
+          </div>
+          <div class="status-line"><span data-status="bgm">Idle</span><span data-meta="bgm"></span></div>
+          <div class="preview" data-preview="bgm">
+            <p class="muted">Completed BGM tasks expose a downloadable archive here.</p>
+          </div>
+          <div class="download-row" data-download="bgm"></div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <template id="fieldTemplate">
+    <label class="field">
+      <span></span>
+      <input>
+      <small class="hint"></small>
+    </label>
+  </template>
+
+  <script type="module" src="/assets/app.js"></script>
+</body>
+</html>

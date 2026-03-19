@@ -11,7 +11,7 @@ fi
 source venv/bin/activate
 
 python3 -m pip install -U pip "setuptools<82" wheel
-python3 -m pip install -r requirements.txt --extra-index-url "$TORCH_EXTRA_INDEX_URL"
+python3 -m pip install -r backend/requirements-backend.txt --extra-index-url "$TORCH_EXTRA_INDEX_URL"
 python3 -m pip install --no-build-isolation -r requirements-legacy.txt
 
 echo "Requirements installed successfully."

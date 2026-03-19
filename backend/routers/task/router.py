@@ -63,33 +63,52 @@ async def get_file_task(
     """
     task = get_task_status_from_db(identifier=identifier, session=session)
 
-    if task is not None:
-        if task.task_type == TaskType.BGM_SEPARATION:
-            output_zip_path = os.path.join(BACKEND_CACHE_DIR, f"{identifier}_bgm_separation.zip")
-            instrumental_path = find_file_by_hash(
-                os.path.join(BACKEND_CACHE_DIR, "UVR", "instrumental"),
-                task.result["instrumental_hash"]
-            )
-            vocal_path = find_file_by_hash(
-                os.path.join(BACKEND_CACHE_DIR, "UVR", "vocals"),
-                task.result["vocal_hash"]
-            )
-
-            output_zip_path = compress_files(
-                [instrumental_path, vocal_path],
-                output_zip_path
-            )
-            return FileResponse(
-                path=output_zip_path,
-                status_code=200,
-                filename=output_zip_path,
-                media_type="application/zip"
-            )
-        else:
-            raise HTTPException(status_code=404, detail=f"File download is only supported for bgm separation."
-                                                        f" The given type is {task.task_type}")
-    else:
+    if task is None:
         raise HTTPException(status_code=404, detail="Identifier not found")
+
+    if task.task_type == TaskType.BGM_SEPARATION:
+        output_zip_path = os.path.join(BACKEND_CACHE_DIR, f"{identifier}_bgm_separation.zip")
+        instrumental_path = find_file_by_hash(
+            os.path.join(BACKEND_CACHE_DIR, "UVR", "instrumental"),
+            task.result["instrumental_hash"]
+        )
+        vocal_path = find_file_by_hash(
+            os.path.join(BACKEND_CACHE_DIR, "UVR", "vocals"),
+            task.result["vocal_hash"]
+        )
+        if instrumental_path is None or vocal_path is None:
+            raise HTTPException(status_code=404, detail="Generated BGM files are no longer available")
+
+        output_zip_path = compress_files(
+            [instrumental_path, vocal_path],
+            output_zip_path
+        )
+        return FileResponse(
+            path=output_zip_path,
+            status_code=200,
+            filename=output_zip_path,
+            media_type="application/zip"
+        )
+
+    if task.task_type == TaskType.TRANSCRIPTION:
+        output_metadata = task.result.get("output", {}) if task.result else {}
+        file_hash = output_metadata.get("hash")
+        filename = output_metadata.get("filename")
+        if not file_hash or not filename:
+            raise HTTPException(status_code=404, detail="No downloadable transcription file is available for this task")
+        file_path = find_file_by_hash(BACKEND_CACHE_DIR, file_hash)
+        if file_path is None:
+            raise HTTPException(status_code=404, detail="Generated transcription file is no longer available")
+        return FileResponse(
+            path=file_path,
+            status_code=200,
+            filename=filename,
+        )
+
+    raise HTTPException(
+        status_code=404,
+        detail=f"File download is only supported for transcription or bgm separation. The given type is {task.task_type}"
+    )
 
 
 # Delete method, commented by default because this endpoint is likely to require special permissions

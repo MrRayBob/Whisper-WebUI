@@ -1,5 +1,5 @@
 # Whisper-WebUI
-A Gradio-based browser interface for [Whisper](https://github.com/openai/whisper). You can use it as an Easy Subtitle Generator!
+A FastAPI-backed browser interface for [Whisper](https://github.com/openai/whisper). You can use it as an Easy Subtitle Generator, and the legacy Gradio UI is still available when needed.
 
 ![screen](https://github.com/user-attachments/assets/caea3afd-a73c-40af-a347-8d57914b1d0f)
 
@@ -74,7 +74,9 @@ docker compose build --build-arg TORCH_EXTRA_INDEX_URL=https://download.pytorch.
 docker compose up
 ```
 
-5. Connect to the WebUI with your browser at `http://localhost:7860`
+5. Connect to the FastAPI WebUI with your browser at `http://localhost:7860`
+
+If you need the legacy Gradio UI for advanced CLI-driven workflows, run `python3 app.py` locally or use `start-webui.sh --legacy` / `start-webui.bat --legacy`.
 
 If needed, update the [`docker-compose.yaml`](https://github.com/jhj0517/Whisper-WebUI/blob/master/docker-compose.yaml) to match your environment.
 
@@ -99,8 +101,8 @@ After installing FFmpeg, make sure `ffmpeg` is on your `PATH`.
 ```shell
 git clone https://github.com/jhj0517/Whisper-WebUI.git
 ```
-2. Run `install.bat` or `install.sh` to install dependencies. The script creates a `venv` directory, bootstraps `pip`, `setuptools`, and `wheel`, then installs the base requirements followed by the legacy Whisper package.
-3. Start WebUI with `start-webui.bat` or `start-webui.sh` (It will run `python3 app.py` after activating the venv)
+2. Run `install.bat` or `install.sh` to install dependencies. The script creates a `venv` directory, bootstraps `pip`, `setuptools`, and `wheel`, then installs the FastAPI UI dependencies followed by the legacy Whisper package.
+3. Start WebUI with `start-webui.bat` or `start-webui.sh` to launch the FastAPI UI. Use the `--legacy` flag if you want the original Gradio app instead.
 
 If you need a non-default wheel index on Ubuntu, run:
 
@@ -119,8 +121,8 @@ According to faster-whisper, the efficiency of the optimized whisper model is as
 | openai/whisper    | fp16      | 5         | 4m30s | 11325MB         | 9439MB          |
 | faster-whisper    | fp16      | 5         | 54s   | 4755MB          | 3244MB          |
 
-If you want to use an implementation other than faster-whisper, use `--whisper_type` arg and the repository name.<br>
-Read [wiki](https://github.com/jhj0517/Whisper-WebUI/wiki/Command-Line-Arguments) for more info about CLI args.
+If you want to use an implementation other than faster-whisper, use the legacy Gradio mode with `--whisper_type` and the repository name.<br>
+Read [wiki](https://github.com/jhj0517/Whisper-WebUI/wiki/Command-Line-Arguments) for more info about the legacy CLI args.
 
 If you want to use a fine-tuned model, manually place the models in `models/Whisper/` corresponding to the implementation.
 

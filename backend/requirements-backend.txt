@@ -2,7 +2,10 @@
 -r ../requirements.txt
 
 # Backend dependencies
+fastapi
+httpx
 python-dotenv
+python-multipart
 uvicorn
 SQLAlchemy
 sqlmodel

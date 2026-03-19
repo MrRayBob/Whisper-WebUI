@@ -12,11 +12,12 @@ RUN apt-get update && \
 WORKDIR /Whisper-WebUI
 
 COPY requirements.txt requirements-legacy.txt .
+COPY backend/requirements-backend.txt backend/requirements-backend.txt
 
 RUN python3 -m venv venv && \
     . venv/bin/activate && \
     python3 -m pip install -U pip "setuptools<82" wheel && \
-    python3 -m pip install -r requirements.txt --extra-index-url "$TORCH_EXTRA_INDEX_URL" && \
+    python3 -m pip install -r backend/requirements-backend.txt --extra-index-url "$TORCH_EXTRA_INDEX_URL" && \
     python3 -m pip install --no-build-isolation -r requirements-legacy.txt
 
 
@@ -37,4 +38,6 @@ VOLUME [ "/Whisper-WebUI/outputs" ]
 ENV PATH="/Whisper-WebUI/venv/bin:$PATH"
 ENV LD_LIBRARY_PATH=/Whisper-WebUI/venv/lib64/python3.11/site-packages/nvidia/cublas/lib:/Whisper-WebUI/venv/lib64/python3.11/site-packages/nvidia/cudnn/lib
 
-ENTRYPOINT [ "python3", "app.py" ]
+EXPOSE 7860
+
+ENTRYPOINT [ "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "7860" ]

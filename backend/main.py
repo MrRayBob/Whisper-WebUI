@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 from fastapi import (
     FastAPI,
 )
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-import os
+from fastapi.staticfiles import StaticFiles
 import time
 import threading
 
@@ -15,7 +16,11 @@ from backend.routers.bgm_separation.router import get_bgm_separation_inferencer,
 from backend.routers.task.router import task_router
 from backend.common.config_loader import read_env, load_server_config
 from backend.common.cache_manager import cleanup_old_files
-from modules.utils.paths import SERVER_CONFIG_PATH, BACKEND_CACHE_DIR
+from modules.utils.paths import BACKEND_CACHE_DIR
+
+
+FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
+FRONTEND_INDEX_PATH = FRONTEND_DIR / "index.html"
 
 
 def clean_cache_thread(ttl: int, frequency: int) -> threading.Thread:
@@ -58,7 +63,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Whisper-WebUI-Backend",
     description=f"""
-    REST API for Whisper-WebUI. Swagger UI is available via /docs or root URL with redirection. Redoc is available via /redoc. 
+    REST API for Whisper-WebUI. The root URL serves the minimal static shell, Swagger UI is available via /docs,
+    and Redoc is available via /redoc.
     """,
     version="0.0.1",
     lifespan=lifespan,
@@ -81,12 +87,16 @@ app.include_router(transcription_router)
 app.include_router(vad_router)
 app.include_router(bgm_separation_router)
 app.include_router(task_router)
+app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIR)), name="assets")
 
 
-@app.get("/", response_class=RedirectResponse, include_in_schema=False)
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def index():
-    """
-    Redirect to the documentation. Defaults to Swagger UI.
-    You can also check the /redoc with redoc style: https://github.com/Redocly/redoc
-    """
-    return "/docs"
+    if FRONTEND_INDEX_PATH.exists():
+        return HTMLResponse(FRONTEND_INDEX_PATH.read_text(encoding="utf-8"))
+
+    return HTMLResponse(
+        "<!doctype html><html><head><meta charset='utf-8'><title>Whisper WebUI</title></head>"
+        "<body><p>Frontend assets are missing.</p></body></html>",
+        status_code=500,
+    )
