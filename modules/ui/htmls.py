@@ -8,55 +8,55 @@ def build_default_theme():
             secondary_hue="sky",
             neutral_hue="slate",
         ).set(
-            body_background_fill="#040816",
-            body_background_fill_dark="#040816",
+            body_background_fill="#418fd6",
+            body_background_fill_dark="#418fd6",
             body_text_color="#f8fbff",
             body_text_color_dark="#f8fbff",
-            body_text_color_subdued="#a9b8d8",
-            body_text_color_subdued_dark="#a9b8d8",
-            background_fill_primary="rgba(7, 17, 38, 0.94)",
-            background_fill_primary_dark="rgba(7, 17, 38, 0.94)",
-            background_fill_secondary="rgba(10, 24, 52, 0.96)",
-            background_fill_secondary_dark="rgba(10, 24, 52, 0.96)",
-            block_background_fill="rgba(9, 20, 44, 0.88)",
-            block_background_fill_dark="rgba(9, 20, 44, 0.88)",
-            block_border_color="rgba(79, 145, 255, 0.26)",
-            block_border_color_dark="rgba(79, 145, 255, 0.26)",
+            body_text_color_subdued="#dcecff",
+            body_text_color_subdued_dark="#dcecff",
+            background_fill_primary="rgba(18, 49, 100, 0.78)",
+            background_fill_primary_dark="rgba(18, 49, 100, 0.78)",
+            background_fill_secondary="rgba(14, 39, 83, 0.86)",
+            background_fill_secondary_dark="rgba(14, 39, 83, 0.86)",
+            block_background_fill="rgba(14, 39, 83, 0.78)",
+            block_background_fill_dark="rgba(14, 39, 83, 0.78)",
+            block_border_color="rgba(190, 225, 255, 0.28)",
+            block_border_color_dark="rgba(190, 225, 255, 0.28)",
             block_label_text_color="#eff6ff",
             block_label_text_color_dark="#eff6ff",
             block_title_text_color="#eff6ff",
             block_title_text_color_dark="#eff6ff",
-            block_info_text_color="#9db0d4",
-            block_info_text_color_dark="#9db0d4",
-            input_background_fill="rgba(5, 12, 30, 0.96)",
-            input_background_fill_dark="rgba(5, 12, 30, 0.96)",
-            input_background_fill_focus="rgba(8, 18, 40, 0.98)",
-            input_background_fill_focus_dark="rgba(8, 18, 40, 0.98)",
-            input_border_color="rgba(94, 161, 255, 0.34)",
-            input_border_color_dark="rgba(94, 161, 255, 0.34)",
-            input_border_color_focus="#5ea1ff",
-            input_border_color_focus_dark="#5ea1ff",
-            input_placeholder_color="#7d90b7",
-            input_placeholder_color_dark="#7d90b7",
-            color_accent="#5ea1ff",
-            color_accent_soft="rgba(42, 104, 227, 0.22)",
-            color_accent_soft_dark="rgba(42, 104, 227, 0.22)",
-            link_text_color="#7db7ff",
-            link_text_color_dark="#7db7ff",
+            block_info_text_color="#d6e8ff",
+            block_info_text_color_dark="#d6e8ff",
+            input_background_fill="rgba(8, 23, 55, 0.88)",
+            input_background_fill_dark="rgba(8, 23, 55, 0.88)",
+            input_background_fill_focus="rgba(11, 29, 66, 0.92)",
+            input_background_fill_focus_dark="rgba(11, 29, 66, 0.92)",
+            input_border_color="rgba(211, 235, 255, 0.26)",
+            input_border_color_dark="rgba(211, 235, 255, 0.26)",
+            input_border_color_focus="#bfe3ff",
+            input_border_color_focus_dark="#bfe3ff",
+            input_placeholder_color="#d3e6fb",
+            input_placeholder_color_dark="#d3e6fb",
+            color_accent="#7cc2ff",
+            color_accent_soft="rgba(124, 194, 255, 0.18)",
+            color_accent_soft_dark="rgba(124, 194, 255, 0.18)",
+            link_text_color="#d9ecff",
+            link_text_color_dark="#d9ecff",
             checkbox_label_text_color="#eff6ff",
             checkbox_label_text_color_dark="#eff6ff",
             accordion_text_color="#eff6ff",
             accordion_text_color_dark="#eff6ff",
             table_text_color="#eff6ff",
             table_text_color_dark="#eff6ff",
-            button_primary_background_fill="#1e6bf7",
-            button_primary_background_fill_dark="#1e6bf7",
-            button_primary_background_fill_hover="#3b82ff",
-            button_primary_background_fill_hover_dark="#3b82ff",
+            button_primary_background_fill="#2f7fe0",
+            button_primary_background_fill_dark="#2f7fe0",
+            button_primary_background_fill_hover="#5daae8",
+            button_primary_background_fill_hover_dark="#5daae8",
             button_primary_text_color="#f8fbff",
             button_primary_text_color_dark="#f8fbff",
-            button_secondary_background_fill="rgba(10, 24, 52, 0.96)",
-            button_secondary_background_fill_dark="rgba(10, 24, 52, 0.96)",
+            button_secondary_background_fill="rgba(14, 39, 83, 0.82)",
+            button_secondary_background_fill_dark="rgba(14, 39, 83, 0.82)",
             button_secondary_text_color="#eff6ff",
             button_secondary_text_color_dark="#eff6ff",
         )
@@ -70,24 +70,25 @@ def build_default_theme():
 CSS = """
 :root {
     color-scheme: dark;
-    --app-bg-start: #030816;
-    --app-bg-mid: #07142e;
-    --app-bg-end: #0a1937;
-    --card-bg: rgba(8, 18, 40, 0.84);
-    --card-border: rgba(94, 161, 255, 0.22);
-    --primary-start: #1e6bf7;
-    --primary-end: #68b2ff;
+    --app-bg-start: #6baee8;
+    --app-bg-mid: #418fd6;
+    --app-bg-end: #2b73bf;
+    --card-bg: rgba(10, 31, 72, 0.66);
+    --card-border: rgba(214, 236, 255, 0.24);
+    --primary-start: #2f7fe0;
+    --primary-end: #7bc5ff;
     --text-strong: #f8fbff;
-    --text-soft: #a9b8d8;
-    --surface-dark: rgba(5, 12, 30, 0.96);
-    --surface-darker: rgba(3, 9, 24, 0.98);
+    --text-soft: #d8ebff;
+    --surface-dark: rgba(8, 23, 55, 0.84);
+    --surface-darker: rgba(7, 18, 44, 0.9);
 }
 
 body,
 .gradio-container {
     background:
-        radial-gradient(circle at top left, rgba(94, 161, 255, 0.20), transparent 28%),
-        radial-gradient(circle at top right, rgba(30, 107, 247, 0.18), transparent 24%),
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.20), transparent 24%),
+        radial-gradient(circle at top right, rgba(150, 214, 255, 0.30), transparent 26%),
+        radial-gradient(circle at bottom left, rgba(9, 56, 110, 0.30), transparent 24%),
         linear-gradient(180deg, var(--app-bg-start) 0%, var(--app-bg-mid) 44%, var(--app-bg-end) 100%);
     color: var(--text-strong);
 }
@@ -112,12 +113,12 @@ body,
 }
 
 .app-shell {
-    padding: 1.25rem;
-    gap: 1rem;
+    padding: 1.5rem;
+    gap: 1.2rem;
 }
 
 .hero-card {
-    padding: 1.25rem 1.35rem;
+    padding: 1.75rem 1.9rem;
 }
 
 .hero-card h1,
@@ -143,27 +144,34 @@ body,
 }
 
 #md_project h1 {
-    margin: 0 0 0.35rem 0;
-    font-size: 2rem;
+    margin: 0 0 0.65rem 0;
+    font-size: 2.15rem;
     line-height: 1.1;
     letter-spacing: -0.03em;
 }
 
 #md_project p {
-    margin: 0 0 0.8rem 0;
-    max-width: 68ch;
+    margin: 0 0 1rem 0;
+    max-width: 62ch;
+    line-height: 1.7;
+    font-size: 1.05rem;
 }
 
 #md_project ol {
     margin: 0;
-    padding-left: 1.25rem;
+    padding-left: 1.5rem;
     color: var(--text-soft);
+    line-height: 1.9;
+}
+
+#md_project li {
+    padding-left: 0.15rem;
 }
 
 .content-card,
 .section-card,
 .result-card {
-    padding: 1rem 1rem 1.1rem 1rem;
+    padding: 1.15rem 1.15rem 1.25rem 1.15rem;
 }
 
 .section-card {
@@ -176,9 +184,10 @@ body,
 
 .feature-note,
 .tab-note {
-    padding: 0.8rem 0.95rem;
-    margin: 0.5rem 0 0.75rem 0;
+    padding: 1rem 1.1rem;
+    margin: 0.5rem 0 0.9rem 0;
     font-size: 0.95rem;
+    line-height: 1.65;
 }
 
 .feature-note strong {
@@ -201,12 +210,12 @@ body,
 .gradio-container .panel,
 .gradio-container .block {
     background: var(--surface-dark) !important;
-    border-color: rgba(94, 161, 255, 0.24) !important;
+    border-color: rgba(214, 236, 255, 0.22) !important;
 }
 
 .gradio-container input::placeholder,
 .gradio-container textarea::placeholder {
-    color: #7d90b7 !important;
+    color: #d3e6fb !important;
 }
 
 .gradio-container .tabs button,
@@ -219,14 +228,14 @@ body,
 .gradio-container .tab-nav button.selected,
 .gradio-container [role="tab"][aria-selected="true"] {
     color: var(--text-strong) !important;
-    background: rgba(18, 43, 88, 0.92) !important;
+    background: rgba(41, 102, 176, 0.92) !important;
 }
 
 .gradio-container .tabs button:hover,
 .gradio-container .tab-nav button:hover,
 .gradio-container [role="tab"]:hover {
     color: var(--text-strong) !important;
-    background: rgba(12, 31, 69, 0.82) !important;
+    background: rgba(58, 122, 199, 0.58) !important;
 }
 
 .gradio-container .label-wrap,
@@ -292,7 +301,7 @@ button.primary:hover,
 
 @media (max-width: 768px) {
     .app-shell {
-        padding: 0.75rem;
+        padding: 0.95rem;
     }
 
     .hero-card,
@@ -303,7 +312,7 @@ button.primary:hover,
     }
 
     #md_project h1 {
-        font-size: 1.65rem;
+        font-size: 1.8rem;
     }
 }
 """
