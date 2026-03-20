@@ -730,6 +730,40 @@ function attachPanelTabs() {
   }
 }
 
+function getMicSupportError() {
+  const reasons = [];
+  if (!window.isSecureContext) {
+    reasons.push("open the app on https or http://localhost");
+  }
+  if (!("MediaRecorder" in window)) {
+    reasons.push("use a browser that supports MediaRecorder");
+  }
+  if (!(navigator.mediaDevices?.getUserMedia) && !navigator.getUserMedia && !navigator.webkitGetUserMedia && !navigator.mozGetUserMedia) {
+    reasons.push("allow microphone APIs in this browser");
+  }
+
+  if (!reasons.length) {
+    return "";
+  }
+
+  return `Microphone recording is unavailable here. ${reasons.join(", ")}.`;
+}
+
+async function requestMicrophoneStream() {
+  if (navigator.mediaDevices?.getUserMedia) {
+    return navigator.mediaDevices.getUserMedia({ audio: true });
+  }
+
+  const legacyGetUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+  if (!legacyGetUserMedia) {
+    throw new Error(getMicSupportError() || "Microphone recording is unavailable in this browser.");
+  }
+
+  return new Promise((resolve, reject) => {
+    legacyGetUserMedia.call(navigator, { audio: true }, resolve, reject);
+  });
+}
+
 async function setupRecorder() {
   const recorderShell = $("[data-recorder]");
   if (!recorderShell) {
@@ -760,9 +794,24 @@ async function setupRecorder() {
     }
   };
 
+  const supportError = getMicSupportError();
+  if (supportError) {
+    setRecorderUi(supportError);
+    if (startBtn) {
+      startBtn.disabled = true;
+    }
+    if (stopBtn) {
+      stopBtn.disabled = true;
+    }
+    if (clearBtn) {
+      clearBtn.disabled = true;
+    }
+    return;
+  }
+
   startBtn?.addEventListener("click", async () => {
     try {
-      state.mic.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      state.mic.stream = await requestMicrophoneStream();
       state.mic.chunks = [];
       state.mic.recorder = new MediaRecorder(state.mic.stream);
 
@@ -786,7 +835,13 @@ async function setupRecorder() {
       stopBtn.disabled = false;
       clearBtn.disabled = true;
     } catch (error) {
-      setRecorderUi(error.message);
+      setRecorderUi(error?.message || "Could not start microphone capture.");
+      if (state.mic.stream) {
+        state.mic.stream.getTracks().forEach((track) => track.stop());
+        state.mic.stream = null;
+      }
+      stopBtn.disabled = true;
+      startBtn.disabled = false;
     }
   });
 
