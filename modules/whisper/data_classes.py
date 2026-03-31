@@ -68,6 +68,16 @@ class Word(BaseModel):
     probability: Optional[float] = Field(default=None, description="Probability of the word")
 
 
+class WhisperRuntimeInfo(BaseModel):
+    requested_device: str = Field(..., description="Device initially requested for Whisper inference")
+    requested_compute_type: str = Field(..., description="Compute type initially requested for Whisper inference")
+    actual_device: str = Field(..., description="Device ultimately used for Whisper inference")
+    actual_compute_type: str = Field(..., description="Compute type ultimately used for Whisper inference")
+    fell_back: bool = Field(default=False, description="Whether Whisper fell back to a different runtime configuration")
+    fallback_reason: Optional[str] = Field(default=None, description="Low-level error that triggered fallback")
+    fallback_message: Optional[str] = Field(default=None, description="User-facing fallback message")
+
+
 class BaseParams(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 

@@ -1,5 +1,6 @@
 import functools
 import os
+import threading
 from datetime import datetime
 from typing import Optional, Union
 
@@ -23,12 +24,14 @@ from modules.whisper.data_classes import (
     TranscriptionPipelineParams,
     VadParams,
     WhisperParams,
+    WhisperRuntimeInfo,
 )
 from modules.whisper.faster_whisper_inference import FasterWhisperInference
 
 from .models import TranscriptionDownloadArtifact, TranscriptionOutputParams, TranscriptionResult
 
 transcription_router = APIRouter(prefix="/transcription", tags=["Transcription"])
+PIPELINE_LOCK = threading.RLock()
 
 
 def create_progress_callback(identifier: str):
@@ -49,13 +52,14 @@ def create_progress_callback(identifier: str):
 @functools.lru_cache
 def get_pipeline() -> FasterWhisperInference:
     config = load_server_config()["whisper"]
-    inferencer = FasterWhisperInference(
-        output_dir=BACKEND_CACHE_DIR
-    )
-    inferencer.update_model(
-        model_size=config["model_size"],
-        compute_type=config["compute_type"]
-    )
+    with PIPELINE_LOCK:
+        inferencer = FasterWhisperInference(
+            output_dir=BACKEND_CACHE_DIR
+        )
+        inferencer.update_model(
+            model_size=config["model_size"],
+            compute_type=config["compute_type"]
+        )
     return inferencer
 
 
@@ -81,6 +85,7 @@ def build_transcription_result(
     output_name: str,
     params: TranscriptionPipelineParams,
     output_params: TranscriptionOutputParams,
+    runtime: WhisperRuntimeInfo,
 ) -> TranscriptionResult:
     writer_options = {
         "highlight_words": True if params.whisper.word_timestamps else False,
@@ -101,6 +106,7 @@ def build_transcription_result(
     return TranscriptionResult(
         segments=[segment.model_dump() for segment in segments],
         output=artifact,
+        runtime=runtime,
     )
 
 
@@ -119,6 +125,12 @@ def mark_task_failed(identifier: str, exc: Exception):
 def cleanup_temp_file(file_path: Optional[str]):
     if file_path and os.path.exists(file_path):
         os.remove(file_path)
+        parent_dir = os.path.dirname(file_path)
+        if parent_dir:
+            try:
+                os.rmdir(parent_dir)
+            except OSError:
+                pass
 
 
 def run_transcription_job(
@@ -141,19 +153,22 @@ def run_transcription_job(
 
     try:
         progress_callback = create_progress_callback(identifier)
-        segments, elapsed_time = get_pipeline().run(
-            audio,
-            gr.Progress(),
-            get_run_output_format(output_params),
-            output_params.add_timestamp,
-            progress_callback,
-            *params.to_list(),
-        )
+        with PIPELINE_LOCK:
+            segments, elapsed_time, runtime = get_pipeline().run(
+                audio,
+                gr.Progress(),
+                get_run_output_format(output_params),
+                output_params.add_timestamp,
+                progress_callback,
+                True,
+                *params.to_list(),
+            )
         result = build_transcription_result(
             segments=segments,
             output_name=output_name,
             params=params,
             output_params=output_params,
+            runtime=runtime,
         )
         update_task_status_in_db(
             identifier=identifier,

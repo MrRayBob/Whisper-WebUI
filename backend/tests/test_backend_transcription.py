@@ -14,6 +14,7 @@ from modules.whisper.data_classes import (
     Segment,
     VadParams,
     WhisperParams,
+    WhisperRuntimeInfo,
 )
 
 
@@ -41,10 +42,19 @@ def build_test_wav_bytes(duration_seconds: float = 0.25, sample_rate: int = 1600
 
 
 class FakePipeline:
-    def run(self, audio, progress, file_format, add_timestamp, progress_callback, *pipeline_params):
+    def run(self, audio, progress, file_format, add_timestamp, progress_callback, include_runtime_info=False, *pipeline_params):
         progress_callback(0.5)
         progress(1.0, desc="Finished")
-        return [
+        runtime = WhisperRuntimeInfo(
+            requested_device="cuda",
+            requested_compute_type="float16",
+            actual_device="cpu",
+            actual_compute_type="float32",
+            fell_back=True,
+            fallback_reason="CUDA failed with error out of memory",
+            fallback_message="Whisper retried on CPU because GPU memory was full.",
+        )
+        result = [
             Segment(
                 id=0,
                 start=0.0,
@@ -52,6 +62,9 @@ class FakePipeline:
                 text="Synthetic transcription result",
             )
         ], 0.01
+        if include_runtime_info:
+            return result[0], result[1], runtime
+        return result
 
 
 @pytest.fixture
@@ -88,6 +101,9 @@ def test_transcription_upload_endpoints_queue_and_download(fake_pipeline, endpoi
     assert result["segments"][0]["text"] == "Synthetic transcription result"
     assert result["output"]["filename"].endswith(".srt")
     assert result["output"]["file_format"] == "srt"
+    assert result["runtime"]["fell_back"] is True
+    assert result["runtime"]["actual_device"] == "cpu"
+    assert result["runtime"]["actual_compute_type"] == "float32"
 
     file_response = fetch_file_response(identifier)
     assert file_response is not None

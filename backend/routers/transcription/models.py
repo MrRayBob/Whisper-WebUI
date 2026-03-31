@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import List
+from modules.whisper.data_classes import WhisperRuntimeInfo
 
 
 class TranscriptionOutputParams(BaseModel):
@@ -30,3 +31,4 @@ class TranscriptionDownloadArtifact(BaseModel):
 class TranscriptionResult(BaseModel):
     segments: List[dict] = Field(..., description="Transcription segments returned by the pipeline.")
     output: TranscriptionDownloadArtifact = Field(..., description="Generated subtitle artifact metadata.")
+    runtime: WhisperRuntimeInfo = Field(..., description="Runtime metadata for the Whisper execution.")

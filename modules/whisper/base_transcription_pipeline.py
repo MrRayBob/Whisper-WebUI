@@ -80,14 +80,38 @@ class BaseTranscriptionPipeline(ABC):
         """Initialize whisper model"""
         pass
 
+    def transcribe_with_runtime(self,
+                                audio: Union[str, BinaryIO, np.ndarray],
+                                progress: gr.Progress = gr.Progress(),
+                                progress_callback: Optional[Callable] = None,
+                                *whisper_params,
+                                ) -> Tuple[List[Segment], float, WhisperRuntimeInfo]:
+        params = WhisperParams.from_list(list(whisper_params))
+        segments_result, elapsed_time = self.transcribe(
+            audio,
+            progress,
+            progress_callback,
+            *whisper_params,
+        )
+        actual_device = getattr(self, "loaded_device", None) or self.device
+        actual_compute_type = getattr(self, "current_compute_type", None) or params.compute_type
+        runtime_info = WhisperRuntimeInfo(
+            requested_device=getattr(self, "preferred_device", self.device),
+            requested_compute_type=params.compute_type,
+            actual_device=actual_device,
+            actual_compute_type=actual_compute_type,
+        )
+        return segments_result, elapsed_time, runtime_info
+
     def run(self,
             audio: Union[str, BinaryIO, np.ndarray],
             progress: gr.Progress = gr.Progress(),
             file_format: str = "SRT",
             add_timestamp: bool = True,
             progress_callback: Optional[Callable] = None,
+            include_runtime_info: bool = False,
             *pipeline_params,
-            ) -> Tuple[List[Segment], float]:
+            ) -> Union[Tuple[List[Segment], float], Tuple[List[Segment], float, WhisperRuntimeInfo]]:
         """
         Run transcription with conditional pre-processing and post-processing.
         The VAD will be performed to remove noise from the audio input in pre-processing, if enabled.
@@ -106,6 +130,8 @@ class BaseTranscriptionPipeline(ABC):
             Whether to add a timestamp at the end of the filename.
         progress_callback: Optional[Callable]
             callback function to show progress. Can be used to update progress in the backend.
+        include_runtime_info: bool
+            Whether to include Whisper runtime metadata in the return value.
 
         *pipeline_params: tuple
             Parameters for the transcription pipeline. This will be dealt with "TranscriptionPipelineParams" data class.
@@ -121,12 +147,20 @@ class BaseTranscriptionPipeline(ABC):
         """
         start_time = time.time()
 
-        if not validate_audio(audio):
-            return [Segment()], 0
-
         params = TranscriptionPipelineParams.from_list(list(pipeline_params))
         params = self.validate_gradio_values(params)
         bgm_params, vad_params, whisper_params, diarization_params = params.bgm_separation, params.vad, params.whisper, params.diarization
+        default_runtime_info = WhisperRuntimeInfo(
+            requested_device=getattr(self, "preferred_device", self.device),
+            requested_compute_type=whisper_params.compute_type,
+            actual_device=getattr(self, "loaded_device", None) or self.device,
+            actual_compute_type=getattr(self, "current_compute_type", None) or whisper_params.compute_type,
+        )
+
+        if not validate_audio(audio):
+            if include_runtime_info:
+                return [Segment()], 0, default_runtime_info
+            return [Segment()], 0
 
         if bgm_params.is_separate_bgm and self.music_separator_available:
             music, audio, _ = self.music_separator.separate(
@@ -177,7 +211,7 @@ class BaseTranscriptionPipeline(ABC):
             else:
                 vad_params.vad_filter = False
 
-        result, elapsed_time_transcription = self.transcribe(
+        result, elapsed_time_transcription, runtime_info = self.transcribe_with_runtime(
             audio,
             progress,
             progress_callback,
@@ -223,6 +257,8 @@ class BaseTranscriptionPipeline(ABC):
 
         progress(1.0, desc="Finished.")
         total_elapsed_time = time.time() - start_time
+        if include_runtime_info:
+            return result, total_elapsed_time, runtime_info
         return result, total_elapsed_time
 
     def transcribe_file(self,

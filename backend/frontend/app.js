@@ -506,9 +506,26 @@ function setDownload(panel, identifier, name) {
   target.appendChild(link);
 }
 
-function renderSegmentsPreview(panel, segments) {
+function renderRuntimeNotice(runtime) {
+  if (!runtime?.fell_back) {
+    return null;
+  }
+
+  const notice = document.createElement("div");
+  notice.className = "helper warning";
+  const message = runtime.fallback_message || "Whisper retried on CPU because GPU memory was full.";
+  notice.innerHTML = `<strong>CPU fallback</strong><br>${escapeHtml(message)}`;
+  return notice;
+}
+
+function renderSegmentsPreview(panel, segments, runtime) {
   const wrapper = document.createElement("div");
   wrapper.className = "stack";
+
+  const runtimeNotice = renderRuntimeNotice(runtime);
+  if (runtimeNotice) {
+    wrapper.appendChild(runtimeNotice);
+  }
 
   const summary = document.createElement("div");
   summary.className = "helper";
@@ -600,12 +617,17 @@ async function pollTask(panel, identifier) {
 
       const segments = Array.isArray(task.result?.segments) ? task.result.segments : [];
       const output = task.result?.output || null;
+      const runtime = task.result?.runtime || null;
       state.latestResults.set(panel, segments);
-      const meta = [task.duration ? `${Math.round(task.duration)}s` : "", output?.filename || ""]
+      const meta = [
+        task.duration ? `${Math.round(task.duration)}s` : "",
+        output?.filename || "",
+        runtime?.fell_back ? "CPU fallback" : "",
+      ]
         .filter(Boolean)
         .join(" · ");
       setPanelStatus(panel, "Completed", meta);
-      setPreview(panel, renderSegmentsPreview(panel, segments));
+      setPreview(panel, renderSegmentsPreview(panel, segments, runtime));
       if (output?.filename) {
         setDownload(panel, identifier, output.filename);
       }

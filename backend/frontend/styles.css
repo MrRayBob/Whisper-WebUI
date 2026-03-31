@@ -494,6 +494,16 @@ audio {
   color: var(--muted);
 }
 
+.helper.warning {
+  color: var(--accent-strong);
+  border-color: rgba(122, 184, 255, 0.28);
+  background: rgba(36, 76, 132, 0.28);
+}
+
+.helper.warning strong {
+  color: var(--text);
+}
+
 .error {
   color: var(--danger);
 }
